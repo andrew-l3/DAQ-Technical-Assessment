@@ -14,15 +14,39 @@ const websocketServer = new WebSocketServer({ port: WS_PORT });
 tcpServer.on("connection", (socket) => {
   console.log("TCP client connected");
 
+  let startTime: number = 0;
+  let invalidTemps: Array<number> = []
   socket.on("data", (msg) => {
     const message: string = msg.toString();
-
+    const temp: number = Number(JSON.parse(message).battery_temperature);
+    const time: number = Number(JSON.parse(message).timestamp);
+    
     console.log(`Received: ${message}`);
+    if (isNaN(temp)) return 1;
+
+    if (startTime === 0) startTime = time;
+    if (temp < 20 || temp > 80) invalidTemps.push(temp);
+
+    let newMessage = JSON.parse(message);
+    newMessage.status = 0;
+    newMessage.delta = 0;
+
+    if (time - startTime > 5000) {
+      if (invalidTemps.length >= 3) {
+        const unders = invalidTemps.filter((val) => val < 20).sort((x, y) => x - y).toString()
+        const overs = invalidTemps.filter((val) => val > 80).sort((x, y) => x - y).toString()
+        console.log(`WARNING: (${invalidTemps.length}) TEMP RANGE BREACHED {LOW: `
+           + `(${unders}), HIGH: (${overs}), BETWEEN (${startTime} - ${time})}`);
+      }
+      startTime = time;
+      invalidTemps = []
+      newMessage.status = 1;
+    }
     
     // Send JSON over WS to frontend clients
     websocketServer.clients.forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        client.send(JSON.stringify(newMessage));
       }
     });
   });

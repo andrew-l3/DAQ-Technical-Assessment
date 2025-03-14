@@ -10,12 +10,19 @@ import { Thermometer } from "lucide-react"
 import Numeric from "../components/custom/numeric"
 import RedbackLogoDarkMode from "../../public/logo-darkmode.svg"
 import RedbackLogoLightMode from "../../public/logo-lightmode.svg"
+import { read } from "node:fs"
+import { Moon, Sun } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ChartData } from "@/components/custom/ChartData"
+import { toast } from "sonner"
 
 const WS_URL = "ws://localhost:8080"
 
 interface VehicleData {
-  battery_temperature: number
-  timestamp: number
+  battery_temperature: number,
+  timestamp: number,
+  status: number,
+  delta: number,
 }
 
 /**
@@ -25,7 +32,7 @@ interface VehicleData {
  * @returns {JSX.Element} The rendered page component.
  */
 export default function Page(): JSX.Element {
-  const { setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [temperature, setTemperature] = useState<any>(0)
   const [connectionStatus, setConnectionStatus] = useState<string>("Disconnected")
   const { lastJsonMessage, readyState }: { lastJsonMessage: VehicleData | null; readyState: ReadyState } = useWebSocket(
@@ -56,7 +63,7 @@ export default function Page(): JSX.Element {
         setConnectionStatus("Disconnected")
         break
     }
-  }, [])
+  }, [readyState])
 
   /**
    * Effect hook to handle incoming WebSocket messages.
@@ -72,15 +79,25 @@ export default function Page(): JSX.Element {
   /**
    * Effect hook to set the theme to dark mode.
    */
+  const handleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
   useEffect(() => {
-    setTheme("dark")
-  }, [setTheme])
+    if ((lastJsonMessage !== null) && (lastJsonMessage.status === 1)) {
+      toast.warning(
+        "Temperature range conditions breached.", {
+        description: String(new Date(lastJsonMessage.timestamp)),
+        duration: 2000,
+      })
+    }
+  }, [lastJsonMessage]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="px-5 h-20 flex items-center gap-5 border-b">
-        <Image
-          src={RedbackLogoDarkMode}
+        <Image suppressHydrationWarning
+          src={theme === "light" ? RedbackLogoLightMode : RedbackLogoDarkMode}
           className="h-12 w-auto"
           alt="Redback Racing Logo"
         />
@@ -88,19 +105,31 @@ export default function Page(): JSX.Element {
         <Badge variant={connectionStatus === "Connected" ? "success" : "destructive"} className="ml-auto">
           {connectionStatus}
         </Badge>
+        <Button variant="outline" size="icon" onClick={handleTheme}>
+          {
+            (theme === "light") ?
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          :
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
+          }
+          <span className="sr-only">Toggle theme</span>
+        </Button>
       </header>
       <main className="flex-grow flex items-center justify-center p-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-light flex items-center gap-2">
-              <Thermometer className="h-6 w-6" />
-              Live Battery Temperature
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            <Numeric temp={temperature} />
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-2">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-2xl font-light flex items-center gap-2">
+                <Thermometer className="h-6 w-6" />
+                Live Battery Temperature
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-center">
+              <Numeric temp={temperature.toFixed(3)} />
+            </CardContent>
+          </Card>
+          <ChartData {...lastJsonMessage}/>
+        </div>
       </main>
     </div>
   )

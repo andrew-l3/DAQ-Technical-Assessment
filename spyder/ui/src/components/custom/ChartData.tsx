@@ -35,10 +35,18 @@ interface VehicleData {
   delta?: number,
 }
 
-export function ChartData(props: VehicleData | null) {
+/**
+ * Shadcn Line Chart (Customised)
+ *
+ * @returns {JSX.Element} The rendered page component.
+ */
+export function ChartData(props: VehicleData | null): JSX.Element {
 
   const [tempData, setTempData] = useState<VehicleData[]>([]);
 
+  /**
+   * Handles data passed from mainpage, determines delta
+   */
   useEffect(() => {
     const time = Date.now();
     let newData: VehicleData[] = [...tempData];

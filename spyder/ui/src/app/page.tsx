@@ -74,6 +74,15 @@ export default function Page(): JSX.Element {
       return
     }
     setTemperature(lastJsonMessage.battery_temperature)
+
+    // Handles toast
+    if (lastJsonMessage.status === 1) {
+      toast.warning(
+        "Temperature range conditions breached.", {
+        description: String(new Date(lastJsonMessage.timestamp)),
+        duration: 2000,
+      })
+    }
   }, [lastJsonMessage])
 
   /**
@@ -82,16 +91,6 @@ export default function Page(): JSX.Element {
   const handleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
-
-  useEffect(() => {
-    if ((lastJsonMessage !== null) && (lastJsonMessage.status === 1)) {
-      toast.warning(
-        "Temperature range conditions breached.", {
-        description: String(new Date(lastJsonMessage.timestamp)),
-        duration: 2000,
-      })
-    }
-  }, [lastJsonMessage]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
